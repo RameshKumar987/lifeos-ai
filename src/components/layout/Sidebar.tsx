@@ -53,7 +53,7 @@ const NAV_SECTIONS = [
 
 export function Sidebar() {
   const { sidebarOpen, setSidebarOpen, toggleSidebar, theme, setTheme } = useUIStore()
-  const { profile } = useAuthStore()
+  const { session, profile } = useAuthStore()
   const location = useLocation()
 
   const isActive = (path: string) => {
@@ -182,10 +182,27 @@ export function Sidebar() {
             {sidebarOpen && <span>Settings</span>}
           </Link>
 
-          {/* User */}
-          {profile && (
+          {/* User / Sign In */}
+          {!session ? (
             <Link
-              to="/settings/account"
+              to="/auth"
+              className={cn(
+                'flex items-center gap-2.5 px-2.5 py-2 rounded-lg bg-gradient-to-r from-accent-600/20 to-electric-600/20 border border-accent-500/30 hover:border-accent-500/60 hover:bg-accent-600/30 transition-all text-accent-300',
+                !sidebarOpen && 'justify-center'
+              )}
+              title="Sign in as Owner"
+            >
+              <Shield className="h-4 w-4 shrink-0 text-accent-400" />
+              {sidebarOpen && (
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-accent-200">Owner Sign In</p>
+                  <p className="text-3xs text-surface-400">Connect to Supabase Cloud</p>
+                </div>
+              )}
+            </Link>
+          ) : profile && (
+            <Link
+              to="/settings"
               className={cn('flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-surface-800 transition-colors cursor-pointer', !sidebarOpen && 'justify-center')}
             >
               <Avatar
@@ -221,6 +238,7 @@ interface HeaderProps {
 export function Header({ title, subtitle, actions }: HeaderProps) {
   const { setSidebarOpen, sidebarOpen } = useUIStore()
   const { setQuickAddOpen } = useUIStore()
+  const { session, profile } = useAuthStore()
 
   return (
     <header className="h-14 flex items-center justify-between px-4 border-b border-surface-800 bg-surface-950/80 backdrop-blur-sm sticky top-0 z-10">
@@ -243,6 +261,26 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
         )}
       </div>
       <div className="flex items-center gap-2">
+        {/* Sign In / Active Status */}
+        {!session ? (
+          <Link
+            to="/auth"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-gradient-to-r from-accent-600 to-electric-600 hover:from-accent-500 hover:to-electric-500 text-white shadow-sm transition-all"
+            title="Sign in to your private LifeOS account"
+          >
+            <Shield className="h-3.5 w-3.5" />
+            <span>Sign In / Owner Login</span>
+          </Link>
+        ) : (
+          <Link
+            to="/settings"
+            className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-lg bg-surface-900 border border-surface-800 text-surface-300 hover:text-white transition-colors"
+          >
+            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="font-medium max-w-[120px] truncate">{profile?.full_name || 'Owner'}</span>
+          </Link>
+        )}
+
         <button
           onClick={() => setQuickAddOpen(true)}
           className="btn-primary btn-sm gap-1.5"

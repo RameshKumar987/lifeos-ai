@@ -121,19 +121,20 @@ export async function generateCompletion(
     }
   }
 
-  // 1. Groq Provider (Llama 3.3 70B) — Ultra fast and free
+  // 1. Groq Provider — Ultra fast and free
   if (provider === 'groq' || (!geminiKey && groqKey)) {
     if (!groqKey) {
       return {
         content: '',
         provider: 'groq',
-        model: 'llama-3.3-70b-versatile',
+        model: 'qwen/qwen3.8-27b',
         success: false,
         error: 'Groq API Key is missing. Please add it in Settings → AI Engine or in .env (VITE_GROQ_API_KEY).',
       }
     }
 
     try {
+      const activeModel = 'qwen/qwen3.8-27b'
       const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -141,7 +142,7 @@ export async function generateCompletion(
           'Authorization': `Bearer ${groqKey}`,
         },
         body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
+          model: activeModel,
           messages: request.messages,
           temperature: request.temperature ?? 0.5,
           max_tokens: request.maxTokens ?? 1500,
@@ -154,12 +155,12 @@ export async function generateCompletion(
       }
 
       const data = await res.json()
-      const content = data.choices?.[0]?.message?.content || ''
+      const content = data.choices?.[0]?.message?.content || data.choices?.[0]?.message?.reasoning || ''
 
       return {
         content,
         provider: 'groq',
-        model: 'llama-3.3-70b-versatile',
+        model: activeModel,
         success: true,
       }
     } catch (err: any) {
@@ -167,7 +168,7 @@ export async function generateCompletion(
       return {
         content: '',
         provider: 'groq',
-        model: 'llama-3.3-70b-versatile',
+        model: 'qwen/qwen3.8-27b',
         success: false,
         error: `Groq Error: ${err.message || 'Failed to generate response'}`,
       }

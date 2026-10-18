@@ -37,7 +37,14 @@ export function TasksPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: string; type: 'task' | 'goal' }>({ open: false, id: '', type: 'task' })
 
   const loadData = useCallback(async () => {
-    if (!session?.user.id) return
+    if (!session?.user.id) {
+      const localTasks = JSON.parse(localStorage.getItem('lifeos_local_tasks') || '[]')
+      const localGoals = JSON.parse(localStorage.getItem('lifeos_local_goals') || '[]')
+      setTasks(localTasks)
+      setGoals(localGoals)
+      setCategories(INITIAL_CATEGORIES as any)
+      return
+    }
     setLoading(true)
     try {
       const userId = session.user.id
@@ -504,6 +511,27 @@ function TaskModal({ open, task, categories, goals, onClose, onSave, userId }: {
         is_recurring: false,
       }
 
+      if (!userId) {
+        const localTasks = JSON.parse(localStorage.getItem('lifeos_local_tasks') || '[]')
+        if (task) {
+          const updated = localTasks.map((t: any) => t.id === task.id ? { ...t, ...payload, id: task.id } : t)
+          localStorage.setItem('lifeos_local_tasks', JSON.stringify(updated))
+          toast.success('Task updated locally!')
+        } else {
+          const newTask = {
+            ...payload,
+            id: `local-${Date.now()}`,
+            created_at: new Date().toISOString(),
+          }
+          localTasks.unshift(newTask)
+          localStorage.setItem('lifeos_local_tasks', JSON.stringify(localTasks))
+          toast.success('Task added locally!')
+        }
+        onSave()
+        onClose()
+        return
+      }
+
       if (task) {
         const { error } = await supabase.from('tasks').update(payload).eq('id', task.id)
         if (error) throw error
@@ -648,6 +676,27 @@ function GoalModal({ open, goal, categories, onClose, onSave, userId }: {
         progress_percent: goal?.progress_percent || 0,
         tags: [],
       }
+      if (!userId) {
+        const localGoals = JSON.parse(localStorage.getItem('lifeos_local_goals') || '[]')
+        if (goal) {
+          const updated = localGoals.map((g: any) => g.id === goal.id ? { ...g, ...payload, id: goal.id } : g)
+          localStorage.setItem('lifeos_local_goals', JSON.stringify(updated))
+          toast.success('Goal updated locally!')
+        } else {
+          const newGoal = {
+            ...payload,
+            id: `local-${Date.now()}`,
+            created_at: new Date().toISOString(),
+          }
+          localGoals.unshift(newGoal)
+          localStorage.setItem('lifeos_local_goals', JSON.stringify(localGoals))
+          toast.success('Goal added locally!')
+        }
+        onSave()
+        onClose()
+        return
+      }
+
       if (goal) {
         const { error } = await supabase.from('goals').update(payload).eq('id', goal.id)
         if (error) throw error

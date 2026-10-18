@@ -95,6 +95,13 @@ export function AuthPage() {
     }
   }
 
+  const fillOwnerCredentials = () => {
+    setName('Ramesh Yadav')
+    setEmail('ramesh.yadav@gmail.com')
+    setPassword('LifeOS@Owner2027')
+    toast.info('Filled Owner credentials!')
+  }
+
   return (
     <div className="min-h-screen bg-surface-950 flex">
       {/* Left panel — decorative */}
@@ -158,13 +165,28 @@ export function AuthPage() {
           <h2 className="text-xl font-bold font-display text-surface-50 mb-1">
             {mode === 'login' ? 'Welcome back' : mode === 'signup' ? 'Create your account' : 'Reset password'}
           </h2>
-          <p className="text-sm text-surface-500 mb-6">
+          <p className="text-sm text-surface-500 mb-4">
             {mode === 'login'
               ? 'Sign in to your personal growth OS'
               : mode === 'signup'
               ? 'Start your journey to career success'
               : "We'll send you a reset link"}
           </p>
+
+          {/* Owner Preset Helper Card */}
+          <div className="mb-5 p-3 rounded-xl bg-accent-600/10 border border-accent-500/30 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-accent-300">Owner Access (Ramesh Yadav)</p>
+              <p className="text-3xs text-surface-400 font-mono">ramesh.yadav@gmail.com</p>
+            </div>
+            <button
+              type="button"
+              onClick={fillOwnerCredentials}
+              className="text-2xs font-semibold px-2.5 py-1.5 rounded-lg bg-accent-600 hover:bg-accent-500 text-white transition-all shadow-sm"
+            >
+              Autofill Login
+            </button>
+          </div>
 
           {/* Supabase not configured warning */}
           {!isSupabaseConfigured && (

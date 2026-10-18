@@ -24,7 +24,13 @@ export function AttendancePage() {
   const today = getLocalDate()
 
   const loadMonthAttendance = useCallback(async () => {
-    if (!session?.user.id) return
+    if (!session?.user.id) {
+      const local = JSON.parse(localStorage.getItem('lifeos_local_attendance') || '[]')
+      setMonthAttendance(local)
+      const t = local.find((r: any) => r.date === today)
+      if (t) setTodayAttendance(t)
+      return
+    }
     setLoading(true)
     try {
       const start = format(startOfMonth(currentMonth), 'yyyy-MM-dd')
@@ -45,14 +51,34 @@ export function AttendancePage() {
     } finally {
       setLoading(false)
     }
-  }, [session?.user.id, currentMonth])
+  }, [session?.user.id, currentMonth, today])
 
   useEffect(() => {
     loadMonthAttendance()
   }, [loadMonthAttendance])
 
   const handleStartDay = async () => {
-    if (!session?.user.id) return
+    if (!session?.user.id) {
+      const newRec: any = {
+        id: `local-${Date.now()}`,
+        user_id: 'guest',
+        date: today,
+        status: 'in_progress',
+        started_at: new Date().toISOString(),
+        is_rest_day: false,
+        sessions: [],
+        duration_mins: 0,
+        xp_earned: 10,
+        created_at: new Date().toISOString()
+      }
+      const local = JSON.parse(localStorage.getItem('lifeos_local_attendance') || '[]')
+      const updated = [newRec, ...local.filter((r: any) => r.date !== today)]
+      localStorage.setItem('lifeos_local_attendance', JSON.stringify(updated))
+      setTodayAttendance(newRec)
+      setMonthAttendance(updated)
+      toast.success('Day started! 🚀 (Local preview mode)')
+      return
+    }
     setDayLoading(true)
     try {
       const { data, error } = await supabase
@@ -79,7 +105,25 @@ export function AttendancePage() {
   }
 
   const handleEndDay = async () => {
-    if (!session?.user.id || !todayAttendance) return
+    if (!todayAttendance) return
+    if (!session?.user.id) {
+      const startedAt = todayAttendance.started_at ? new Date(todayAttendance.started_at) : new Date()
+      const endedAt = new Date()
+      const durationMins = Math.floor((endedAt.getTime() - startedAt.getTime()) / 60000)
+      const updatedRec: any = {
+        ...todayAttendance,
+        status: 'completed',
+        ended_at: endedAt.toISOString(),
+        duration_mins: durationMins,
+      }
+      const local = JSON.parse(localStorage.getItem('lifeos_local_attendance') || '[]')
+      const updated = [updatedRec, ...local.filter((r: any) => r.date !== today)]
+      localStorage.setItem('lifeos_local_attendance', JSON.stringify(updated))
+      setTodayAttendance(updatedRec)
+      setMonthAttendance(updated)
+      toast.success(`Day wrapped! ${formatDuration(durationMins)} logged 🎉`)
+      return
+    }
     setDayLoading(true)
     try {
       const startedAt = todayAttendance.started_at ? new Date(todayAttendance.started_at) : new Date()

@@ -45,8 +45,39 @@ export function QuickAdd() {
       return
     }
 
-    if (!user) {
-      toast.error('Please sign in to save items')
+    if (!user || user.id === 'demo-user') {
+      if (type === 'task') {
+        const localTasks = JSON.parse(localStorage.getItem('lifeos_local_tasks') || '[]')
+        localTasks.unshift({
+          id: `local-${Date.now()}`,
+          title: title.trim(),
+          description: notes.trim() || null,
+          status: 'todo',
+          priority: 'medium',
+          tags: [],
+          resources: [],
+          created_at: new Date().toISOString()
+        })
+        localStorage.setItem('lifeos_local_tasks', JSON.stringify(localTasks))
+        toast.success('Task saved locally! Sign in to sync across devices.')
+        handleClose()
+        navigate('/tasks')
+      } else if (type === 'learning') {
+        const localNotes = JSON.parse(localStorage.getItem('lifeos_local_learning') || '[]')
+        localNotes.unshift({
+          id: `local-${Date.now()}`,
+          title: title.trim(),
+          raw_notes: notes.trim() || title.trim(),
+          created_at: new Date().toISOString()
+        })
+        localStorage.setItem('lifeos_local_learning', JSON.stringify(localNotes))
+        toast.success('Learning note saved locally!')
+        handleClose()
+        navigate('/learning')
+      } else {
+        toast.success('Captured locally! Sign in to sync to cloud.')
+        handleClose()
+      }
       return
     }
 
