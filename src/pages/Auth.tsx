@@ -6,6 +6,8 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { toast } from 'sonner'
 import { cn } from '../lib/utils'
 
+import { useAuthStore } from '../store'
+
 type AuthMode = 'login' | 'signup' | 'forgot'
 
 export function AuthPage() {
@@ -13,6 +15,7 @@ export function AuthPage() {
   const initialMode = (searchParams.get('mode') as AuthMode) || 'login'
   const [mode, setMode] = useState<AuthMode>(initialMode)
   const navigate = useNavigate()
+  const { user, setSession, setUser } = useAuthStore()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -22,21 +25,28 @@ export function AuthPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
+  // Redirect if already logged in
+  React.useEffect(() => {
+    if (user && user.id !== 'demo-user') {
+      navigate('/', { replace: true })
+    }
+  }, [user, navigate])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
     setSuccess(null)
 
     if (!isSupabaseConfigured) {
-      setError('Supabase is not configured. Please set up your environment variables.')
+      setError('Supabase is not configured. Please check your credentials in .env or Settings.')
       return
     }
 
     setLoading(true)
     try {
       if (mode === 'signup') {
-        if (!name.trim()) { setError('Please enter your name'); return }
-        if (password.length < 8) { setError('Password must be at least 8 characters'); return }
+        if (!name.trim()) { setError('Please enter your full name'); return }
+        if (password.length < 6) { setError('Password must be at least 6 characters'); return }
 
         const { data, error: signUpError } = await supabase.auth.signUp({
           email: email.trim(),
@@ -46,26 +56,40 @@ export function AuthPage() {
           },
         })
         if (signUpError) throw signUpError
-        if (data.user) {
-          setSuccess('Account created! Check your email to confirm.')
+
+        if (data.session) {
+          setSession(data.session)
+          setUser(data.user)
+          toast.success('Account created and signed in!')
+          navigate('/')
+        } else if (data.user) {
+          setSuccess('Account created! If email confirmation is enabled on your Supabase project, check your email to confirm, then sign in.')
+          toast.success('Account created successfully!')
         }
       } else if (mode === 'login') {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
+        const { data, error: signInError } = await supabase.auth.signInWithPassword({
           email: email.trim(),
           password,
         })
         if (signInError) throw signInError
+        if (data.session) {
+          setSession(data.session)
+          setUser(data.user)
+        }
+        toast.success('Welcome back to LifeOS AI!')
         navigate('/')
       } else {
         const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-          redirectTo: `${window.location.origin}/auth/reset-password`,
+          redirectTo: `${window.location.origin}/auth`,
         })
         if (resetError) throw resetError
         setSuccess('Password reset email sent! Check your inbox.')
+        toast.success('Reset email sent!')
       }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'An error occurred'
+    } catch (err: any) {
+      const message = err?.message || 'An error occurred during authentication'
       setError(message)
+      toast.error(message)
     } finally {
       setLoading(false)
     }
@@ -260,6 +284,18 @@ export function AuthPage() {
               </button>
             </div>
           )}
+
+          {/* Guest / Direct access */}
+          <div className="mt-6 pt-5 border-t border-surface-800/80 text-center">
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="text-xs text-surface-400 hover:text-surface-200 transition-colors inline-flex items-center gap-1.5"
+            >
+              <span>Explore as Guest / Offline Preview</span>
+              <span>→</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

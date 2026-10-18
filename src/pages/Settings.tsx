@@ -56,8 +56,15 @@ export function Settings() {
   const handleSaveAIConfig = () => {
     saveAIKey('gemini', geminiKey)
     saveAIKey('groq', groqKey)
-    setActiveProvider(aiProvider)
-    toast.success('AI credentials and provider saved!')
+    let effective = aiProvider
+    if (aiProvider === 'gemini' && !geminiKey.trim() && groqKey.trim()) {
+      effective = 'groq'
+    } else if (aiProvider === 'groq' && !groqKey.trim() && geminiKey.trim()) {
+      effective = 'gemini'
+    }
+    setActiveProvider(effective)
+    setAiProvider(effective)
+    toast.success(`AI credentials saved! Active: ${effective.toUpperCase()}`)
   }
 
   const handleTestAI = async () => {
@@ -68,14 +75,17 @@ export function Settings() {
     try {
       const res = await generateCompletion({
         messages: [
-          { role: 'user', content: 'Respond with a short, 1-sentence confirmation saying: "LifeOS AI is connected and ready to assist you!"' }
+          { role: 'user', content: 'Respond with a short, 1-sentence confirmation: "LifeOS AI is connected and ready to assist you!"' }
         ],
-        maxTokens: 50,
+        maxTokens: 60,
       })
 
       if (res.success) {
-        setAiTestResult({ success: true, message: res.content })
-        toast.success('AI connected successfully!')
+        setAiTestResult({
+          success: true,
+          message: `${res.content} (Engine: ${res.provider.toUpperCase()} - ${res.model})`
+        })
+        toast.success(`Connected to ${res.provider.toUpperCase()}!`)
       } else {
         setAiTestResult({ success: false, message: res.error || 'Failed to connect' })
         toast.error(res.error || 'Connection failed')

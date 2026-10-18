@@ -58,15 +58,23 @@ export function saveAIKey(provider: 'gemini' | 'groq', key: string): void {
 }
 
 export function getActiveProvider(): AIProviderType {
+  const groqKey = getAIKey('groq')
+  const geminiKey = getAIKey('gemini')
+
+  const savedProvider = typeof window !== 'undefined' ? (localStorage.getItem('lifeos_active_ai_provider') as AIProviderType) : null
+  if (savedProvider === 'groq' && groqKey) return 'groq'
+  if (savedProvider === 'gemini' && geminiKey) return 'gemini'
+
   const envProvider = (import.meta.env.VITE_AI_PROVIDER as AIProviderType)
-  if (envProvider && envProvider !== 'none') return envProvider
+  if (envProvider === 'groq' && groqKey) return 'groq'
+  if (envProvider === 'gemini' && geminiKey) return 'gemini'
 
-  const savedProvider = localStorage.getItem('lifeos_active_ai_provider') as AIProviderType
-  if (savedProvider && savedProvider !== 'none') return savedProvider
+  if (groqKey && !geminiKey) return 'groq'
+  if (geminiKey && !groqKey) return 'gemini'
+  if (groqKey) return 'groq'
+  if (geminiKey) return 'gemini'
 
-  if (getAIKey('gemini')) return 'gemini'
-  if (getAIKey('groq')) return 'groq'
-  return 'none'
+  return savedProvider || envProvider || (groqKey ? 'groq' : geminiKey ? 'gemini' : 'none')
 }
 
 export function setActiveProvider(provider: AIProviderType): void {
@@ -74,7 +82,11 @@ export function setActiveProvider(provider: AIProviderType): void {
 }
 
 export const isAIConfigured: boolean = Boolean(
-  (typeof window !== 'undefined' && (localStorage.getItem('lifeos_gemini_api_key') || localStorage.getItem('lifeos_groq_api_key') || localStorage.getItem('lifeos_active_ai_provider'))) ||
+  (typeof window !== 'undefined' && (
+    localStorage.getItem('lifeos_gemini_api_key') ||
+    localStorage.getItem('lifeos_groq_api_key') ||
+    localStorage.getItem('lifeos_active_ai_provider')
+  )) ||
   import.meta.env.VITE_GEMINI_API_KEY ||
   import.meta.env.VITE_GROQ_API_KEY ||
   (import.meta.env.VITE_AI_PROVIDER && import.meta.env.VITE_AI_PROVIDER !== 'none')
@@ -87,59 +99,31 @@ export async function generateCompletion(
   request: AICompletionRequest,
   _accessToken?: string
 ): Promise<AICompletionResponse> {
-  const provider = getActiveProvider()
+  const groqKey = getAIKey('groq')
+  const geminiKey = getAIKey('gemini')
+  let provider = getActiveProvider()
 
-  // 1. Google Gemini Provider
-  if (provider === 'gemini' || getAIKey('gemini')) {
-    const apiKey = getAIKey('gemini')
-    if (!apiKey) {
-      return {
-        content: '',
-        provider: 'gemini',
-        model: 'gemini-1.5-flash',
-        success: false,
-        error: 'Gemini API Key is missing. Please add it in Settings → AI Engine or in .env (VITE_GEMINI_API_KEY).',
-      }
-    }
+  // Smart fallback: If provider has no key but the other does, seamlessly switch
+  if (provider === 'gemini' && !geminiKey && groqKey) {
+    provider = 'groq'
+  } else if (provider === 'groq' && !groqKey && geminiKey) {
+    provider = 'gemini'
+  }
 
-    try {
-      const genAI = new GoogleGenerativeAI(apiKey)
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
-
-      // Construct prompt from messages
-      const systemMsg = request.messages.find(m => m.role === 'system')?.content || ''
-      const conversation = request.messages
-        .filter(m => m.role !== 'system')
-        .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
-        .join('\n\n')
-
-      const fullPrompt = systemMsg ? `[Instructions]:\n${systemMsg}\n\n[Conversation]:\n${conversation}` : conversation
-
-      const result = await model.generateContent(fullPrompt)
-      const text = result.response.text()
-
-      return {
-        content: text,
-        provider: 'gemini',
-        model: 'gemini-1.5-flash',
-        success: true,
-      }
-    } catch (err: any) {
-      console.error('Gemini API call failed:', err)
-      return {
-        content: '',
-        provider: 'gemini',
-        model: 'gemini-1.5-flash',
-        success: false,
-        error: `Gemini Error: ${err.message || 'Failed to generate response'}`,
-      }
+  // If no AI key is found anywhere
+  if (provider === 'none' || (!groqKey && !geminiKey)) {
+    return {
+      content: '',
+      provider: 'none',
+      model: 'none',
+      success: false,
+      error: 'AI is not configured. Please add your Groq API Key (or Gemini key) in Settings → AI Engine.',
     }
   }
 
-  // 2. Groq Provider (Llama 3.3 70B)
-  if (provider === 'groq' || getAIKey('groq')) {
-    const apiKey = getAIKey('groq')
-    if (!apiKey) {
+  // 1. Groq Provider (Llama 3.3 70B) — Ultra fast and free
+  if (provider === 'groq' || (!geminiKey && groqKey)) {
+    if (!groqKey) {
       return {
         content: '',
         provider: 'groq',
@@ -154,7 +138,7 @@ export async function generateCompletion(
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
+          'Authorization': `Bearer ${groqKey}`,
         },
         body: JSON.stringify({
           model: 'llama-3.3-70b-versatile',
@@ -186,6 +170,51 @@ export async function generateCompletion(
         model: 'llama-3.3-70b-versatile',
         success: false,
         error: `Groq Error: ${err.message || 'Failed to generate response'}`,
+      }
+    }
+  }
+
+  // 2. Google Gemini Provider
+  if (provider === 'gemini') {
+    if (!geminiKey) {
+      return {
+        content: '',
+        provider: 'gemini',
+        model: 'gemini-1.5-flash',
+        success: false,
+        error: 'Gemini API Key is missing. Please add it in Settings → AI Engine or in .env (VITE_GEMINI_API_KEY).',
+      }
+    }
+
+    try {
+      const genAI = new GoogleGenerativeAI(geminiKey)
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+
+      const systemMsg = request.messages.find(m => m.role === 'system')?.content || ''
+      const conversation = request.messages
+        .filter(m => m.role !== 'system')
+        .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
+        .join('\n\n')
+
+      const fullPrompt = systemMsg ? `[Instructions]:\n${systemMsg}\n\n[Conversation]:\n${conversation}` : conversation
+
+      const result = await model.generateContent(fullPrompt)
+      const text = result.response.text()
+
+      return {
+        content: text,
+        provider: 'gemini',
+        model: 'gemini-1.5-flash',
+        success: true,
+      }
+    } catch (err: any) {
+      console.error('Gemini API call failed:', err)
+      return {
+        content: '',
+        provider: 'gemini',
+        model: 'gemini-1.5-flash',
+        success: false,
+        error: `Gemini Error: ${err.message || 'Failed to generate response'}`,
       }
     }
   }
