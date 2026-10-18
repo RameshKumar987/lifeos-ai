@@ -203,9 +203,32 @@ export function AuthPage() {
           )}
 
           {error && (
-            <div className="mb-4 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 flex gap-2">
-              <AlertCircle className="h-4 w-4 text-rose-400 shrink-0 mt-0.5" />
-              <p className="text-xs text-rose-400">{error}</p>
+            <div className="mb-4 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 space-y-2">
+              <div className="flex gap-2">
+                <AlertCircle className="h-4 w-4 text-rose-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-rose-300 font-medium">{error}</p>
+              </div>
+              {error.toLowerCase().includes('email not confirmed') && (
+                <div className="text-2xs text-surface-300 bg-surface-900/90 p-2.5 rounded-lg border border-rose-500/20 space-y-1.5">
+                  <p className="font-semibold text-amber-300">⚡ 10-Second Fix (Supabase):</p>
+                  <p>
+                    1. Open{' '}
+                    <a
+                      href="https://supabase.com/dashboard/project/bgzszlmydppfrgbcqauo/auth/providers"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-accent-400 underline font-medium hover:text-accent-300 inline-flex items-center gap-1"
+                    >
+                      Supabase Auth Providers Settings ↗
+                    </a>
+                  </p>
+                  <p>2. Click <b>Email</b>, toggle <b>Confirm email</b> to <b>OFF</b>, and click <b>Save</b>.</p>
+                  <p className="text-surface-400 pt-1 border-t border-surface-800">
+                    Or run in SQL Editor:{' '}
+                    <code className="text-emerald-400 select-all font-mono">UPDATE auth.users SET email_confirmed_at = now();</code>
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
